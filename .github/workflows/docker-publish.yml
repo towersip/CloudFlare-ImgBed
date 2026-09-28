@@ -12,7 +12,8 @@ env:
 
 jobs:
   build-and-push:
-    if: github.repository == 'MarSeventh/CloudFlare-ImgBed'
+    # Publish the upstream image and the maintained towersip fork image.
+    if: github.repository == 'MarSeventh/CloudFlare-ImgBed' || github.repository == 'towersip/CloudFlare-ImgBed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

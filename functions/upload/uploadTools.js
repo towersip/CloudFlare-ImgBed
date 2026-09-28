@@ -3,6 +3,17 @@ import { purgeCFCache, purgeRandomFileListCache, purgePublicFileListCache } from
 import { addFileToIndex } from "../utils/indexManager.js";
 import { getDatabase } from '../utils/databaseAdapter.js';
 
+const SIGHTENGINE_API_URL = 'https://api.sightengine.com/1.0/check.json';
+const SIGHTENGINE_DEFAULT_MODELS = 'nudity-2.1';
+const SIGHTENGINE_NUDITY_SCORE_FIELDS = [
+    'sexual_activity',
+    'sexual_display',
+    'erotica',
+    'very_suggestive',
+    'suggestive',
+    'mildly_suggestive',
+];
+
 // 统一的响应创建函数
 export function createResponse(body, options = {}) {
     const defaultHeaders = {
@@ -348,9 +359,9 @@ export async function moderateContent(env, url) {
             const moderate_data = await fetchResponse.json();
 
             const score = moderate_data.score || 0;
-            if (score >= 0.9) {
+            if (score >= 0.7) {
                 label = "adult";
-            } else if (score >= 0.7) {
+            } else if (score >= 0.4) {
                 label = "teen";
             } else {
                 label = "everyone";
@@ -364,7 +375,74 @@ export async function moderateContent(env, url) {
         return label;
     }
 
+    // Sightengine 渠道
+    if (uploadModerate.channel === 'sightengine') {
+        const apiUser = uploadModerate.sightengineApiUser;
+        const apiSecret = uploadModerate.sightengineApiSecret;
+
+        if (!apiUser || !apiSecret) {
+            console.error('Sightengine moderation requires an API user and API secret.');
+            return label;
+        }
+
+        try {
+            const params = new URLSearchParams({
+                url: String(url),
+                models: normalizeSightengineModels(uploadModerate.sightengineModels),
+                api_user: apiUser,
+                api_secret: apiSecret,
+            });
+            const fetchResponse = await fetch(`${SIGHTENGINE_API_URL}?${params.toString()}`);
+            if (!fetchResponse.ok) {
+                throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            }
+
+            const moderateData = await fetchResponse.json();
+            if (moderateData.status && moderateData.status !== 'success') {
+                throw new Error(`Sightengine moderation failed: ${moderateData.status}`);
+            }
+
+            label = classifySightengineLabel(moderateData);
+        } catch (error) {
+            console.error('Sightengine moderation error:', error);
+            // 保持现有行为：审查服务失败时将结果标记为未审查
+            label = "None";
+        }
+
+        return label;
+    }
+
     return label;
+}
+
+/**
+ * 将 Sightengine 的 nudity 模型结果映射到现有的审查标签。
+ * @param {Object} moderateData - Sightengine API 响应
+ * @returns {"adult"|"teen"|"everyone"}
+ */
+export function classifySightengineLabel(moderateData) {
+    const nudity = moderateData?.nudity;
+    const score = SIGHTENGINE_NUDITY_SCORE_FIELDS.reduce((highest, field) => {
+        const value = Number(nudity?.[field]);
+        return Number.isFinite(value) ? Math.max(highest, value) : highest;
+    }, 0);
+
+    if (score >= 0.7) {
+        return "adult";
+    } else if (score >= 0.4) {
+        return "teen";
+    }
+
+    return "everyone";
+}
+
+function normalizeSightengineModels(models) {
+    const normalized = String(models || SIGHTENGINE_DEFAULT_MODELS)
+        .split(',')
+        .map(model => model.trim())
+        .filter(Boolean);
+
+    return [...new Set(normalized)].join(',') || SIGHTENGINE_DEFAULT_MODELS;
 }
 
 // 清除CDN缓存

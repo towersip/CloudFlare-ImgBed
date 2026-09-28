@@ -161,9 +161,12 @@ export async function getSecurityConfig(db, env) {
     const upload = {
         moderate: {
             enabled: kvUpload.moderate?.enabled ?? false,
-            channel: kvUpload.moderate?.channel || 'moderatecontent.com', // [moderatecontent.com, nsfwjs]
+            channel: kvUpload.moderate?.channel || 'moderatecontent.com', // [moderatecontent.com, nsfwjs, sightengine]
             moderateContentApiKey: kvUpload.moderate?.moderateContentApiKey || kvUpload.moderate?.apiKey || env.ModerateContentApiKey || '',
             nsfwApiPath: kvUpload.moderate?.nsfwApiPath || '',
+            sightengineApiUser: kvUpload.moderate?.sightengineApiUser || env.SightengineApiUser || env.SIGHTENGINE_API_USER || '',
+            sightengineApiSecret: kvUpload.moderate?.sightengineApiSecret || env.SightengineApiSecret || env.SIGHTENGINE_API_SECRET || '',
+            sightengineModels: kvUpload.moderate?.sightengineModels || env.SightengineModels || env.SIGHTENGINE_MODELS || 'nudity-2.1',
         },
         ipQuery: {
             enabled: kvUpload.ipQuery?.enabled ?? false,

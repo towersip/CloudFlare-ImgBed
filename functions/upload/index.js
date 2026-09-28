@@ -749,7 +749,7 @@ async function uploadFileToHuggingFace(context, fullId, metadata, returnLink) {
         if (uploadModerate && uploadModerate.enabled) {
             if (!hfChannel.isPrivate) {
                 // 公开仓库：直接通过公开URL访问进行审查，只写入1次KV
-                metadata.Label = await moderateContent(env, result.fileUrl);
+                metadata.Label = await moderateContent(env, result.fileUrl, file);
             } else {
                 // 私有仓库：先写入KV，再通过自己的域名访问进行审查
                 try {
@@ -760,7 +760,7 @@ async function uploadFileToHuggingFace(context, fullId, metadata, returnLink) {
                 
                 const moderateUrl = `https://${context.url.hostname}/file/${fullId}`;
                 await purgeCDNCache(env, moderateUrl, context.url);
-                metadata.Label = await moderateContent(env, moderateUrl);
+                metadata.Label = await moderateContent(env, moderateUrl, file);
             }
         }
 

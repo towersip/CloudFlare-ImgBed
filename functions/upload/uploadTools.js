@@ -305,7 +305,7 @@ export function getImageDimensions(buffer, fileType) {
 }
 
 // 图像审查
-export async function moderateContent(env, url) {
+export async function moderateContent(env, url, media = null) {
     const securityConfig = await fetchSecurityConfig(env);
     const uploadModerate = securityConfig.upload.moderate;
 
@@ -386,15 +386,39 @@ export async function moderateContent(env, url) {
         }
 
         try {
-            const params = new URLSearchParams({
-                url: String(url),
-                models: normalizeSightengineModels(uploadModerate.sightengineModels),
-                api_user: apiUser,
-                api_secret: apiSecret,
-            });
-            const fetchResponse = await fetch(`${SIGHTENGINE_API_URL}?${params.toString()}`);
+            const models = normalizeSightengineModels(uploadModerate.sightengineModels);
+            let fetchResponse;
+
+            // HuggingFace's resolve URL redirects to CDN/LFS. When the original
+            // media is available, upload it directly so Sightengine does not need
+            // to follow a redirecting URL.
+            if (media && typeof media.arrayBuffer === 'function') {
+                const formData = new FormData();
+                const fileName = typeof media.name === 'string' && media.name
+                    ? media.name
+                    : 'image';
+                formData.append('media', media, fileName);
+                formData.append('models', models);
+                formData.append('api_user', apiUser);
+                formData.append('api_secret', apiSecret);
+
+                fetchResponse = await fetch(SIGHTENGINE_API_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+            } else {
+                const params = new URLSearchParams({
+                    url: String(url),
+                    models,
+                    api_user: apiUser,
+                    api_secret: apiSecret,
+                });
+                fetchResponse = await fetch(`${SIGHTENGINE_API_URL}?${params.toString()}`);
+            }
+
             if (!fetchResponse.ok) {
-                throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                const errorBody = await fetchResponse.text();
+                throw new Error(`HTTP error! status: ${fetchResponse.status}${errorBody ? `, response: ${errorBody.slice(0, 500)}` : ''}`);
             }
 
             const moderateData = await fetchResponse.json();

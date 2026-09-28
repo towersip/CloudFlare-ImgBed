@@ -1,6 +1,6 @@
 services:
   imgbed:
-    image: marseventh/cloudflare-imgbed:latest
+    image: ghcr.io/towersip/cloudflare-imgbed:latest
     ports:
       - "7658:8080"
     volumes:

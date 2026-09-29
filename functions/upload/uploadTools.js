@@ -349,30 +349,7 @@ export async function moderateContent(env, url, media = null) {
 
     // nsfw 渠道
     if (uploadModerate.channel === 'nsfwjs') {
-        const nsfwApiPath = securityConfig.upload.moderate.nsfwApiPath;
-
-        try {
-            const fetchResponse = await fetch(`${nsfwApiPath}?url=${encodeURIComponent(url)}`);
-            if (!fetchResponse.ok) {
-                throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            }
-            const moderate_data = await fetchResponse.json();
-
-            const score = moderate_data.score || 0;
-            if (score >= 0.7) {
-                label = "adult";
-            } else if (score >= 0.4) {
-                label = "teen";
-            } else {
-                label = "everyone";
-            }
-        } catch (error) {
-            console.error('Moderate Error:', error);
-            // 将不带审查的图片写入数据库
-            label = "None";
-        }
-
-        return label;
+        return moderateWithNsfwJs(uploadModerate.nsfwApiPath, url);
     }
 
     // Sightengine 渠道
@@ -418,17 +395,26 @@ export async function moderateContent(env, url, media = null) {
 
             if (!fetchResponse.ok) {
                 const errorBody = await fetchResponse.text();
-                throw new Error(`HTTP error! status: ${fetchResponse.status}${errorBody ? `, response: ${errorBody.slice(0, 500)}` : ''}`);
+                const error = new Error(`HTTP error! status: ${fetchResponse.status}${errorBody ? `, response: ${errorBody.slice(0, 500)}` : ''}`);
+                error.sightengineUsageLimit = isSightengineUsageLimit(errorBody);
+                throw error;
             }
 
             const moderateData = await fetchResponse.json();
-            if (moderateData.status && moderateData.status !== 'success') {
-                throw new Error(`Sightengine moderation failed: ${moderateData.status}`);
+            if ((moderateData.status && moderateData.status !== 'success') || moderateData.error) {
+                const error = new Error(`Sightengine moderation failed: ${moderateData.status}`);
+                error.sightengineUsageLimit = isSightengineUsageLimit(moderateData);
+                throw error;
             }
 
             label = classifySightengineLabel(moderateData);
         } catch (error) {
             console.error('Sightengine moderation error:', error);
+            // 免费额度用尽时返回 error.type=usage_limit；配置了 NSFWJS 地址时自动降级。
+            if (error?.sightengineUsageLimit && hasNsfwJsApiPath(uploadModerate.nsfwApiPath)) {
+                console.warn('Sightengine usage limit reached; using NSFWJS fallback.');
+                return moderateWithNsfwJs(uploadModerate.nsfwApiPath, url);
+            }
             // 保持现有行为：审查服务失败时将结果标记为未审查
             label = "None";
         }
@@ -467,6 +453,59 @@ function normalizeSightengineModels(models) {
         .filter(Boolean);
 
     return [...new Set(normalized)].join(',') || SIGHTENGINE_DEFAULT_MODELS;
+}
+
+/**
+ * 使用 NSFWJS 审查图片。
+ * @param {string} nsfwApiPath - NSFWJS 服务地址
+ * @param {string} url - 图片地址
+ * @returns {Promise<"adult"|"teen"|"everyone"|"None">}
+ */
+export async function moderateWithNsfwJs(nsfwApiPath, url) {
+    const apiPath = typeof nsfwApiPath === 'string' ? nsfwApiPath.trim() : '';
+    if (!apiPath) {
+        console.error('NSFWJS moderation requires an API path.');
+        return 'None';
+    }
+
+    try {
+        const separator = apiPath.includes('?')
+            ? (apiPath.endsWith('?') || apiPath.endsWith('&') ? '' : '&')
+            : '?';
+        const fetchResponse = await fetch(`${apiPath}${separator}url=${encodeURIComponent(String(url))}`);
+        if (!fetchResponse.ok) {
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+        }
+        const moderateData = await fetchResponse.json();
+        const score = Number(moderateData?.score) || 0;
+
+        if (score >= 0.7) {
+            return 'adult';
+        } else if (score >= 0.4) {
+            return 'teen';
+        }
+        return 'everyone';
+    } catch (error) {
+        console.error('NSFWJS moderation error:', error);
+        // 将不带审查的图片写入数据库
+        return 'None';
+    }
+}
+
+function hasNsfwJsApiPath(nsfwApiPath) {
+    return typeof nsfwApiPath === 'string' && nsfwApiPath.trim() !== '';
+}
+
+function isSightengineUsageLimit(response) {
+    if (typeof response === 'string') {
+        try {
+            return isSightengineUsageLimit(JSON.parse(response));
+        } catch {
+            return /"type"\s*:\s*"usage_limit"/i.test(response);
+        }
+    }
+
+    return response?.error?.type === 'usage_limit';
 }
 
 // 清除CDN缓存

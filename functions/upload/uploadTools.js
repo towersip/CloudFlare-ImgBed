@@ -5,10 +5,12 @@ import { getDatabase } from '../utils/databaseAdapter.js';
 
 const SIGHTENGINE_API_URL = 'https://api.sightengine.com/1.0/check.json';
 const SIGHTENGINE_DEFAULT_MODELS = 'nudity-2.1';
-const SIGHTENGINE_NUDITY_SCORE_FIELDS = [
+const SIGHTENGINE_EXPLICIT_SCORE_FIELDS = [
     'sexual_activity',
     'sexual_display',
     'erotica',
+];
+const SIGHTENGINE_SUGGESTIVE_SCORE_FIELDS = [
     'very_suggestive',
     'suggestive',
     'mildly_suggestive',
@@ -432,18 +434,23 @@ export async function moderateContent(env, url, media = null) {
  */
 export function classifySightengineLabel(moderateData) {
     const nudity = moderateData?.nudity;
-    const score = SIGHTENGINE_NUDITY_SCORE_FIELDS.reduce((highest, field) => {
-        const value = Number(nudity?.[field]);
-        return Number.isFinite(value) ? Math.max(highest, value) : highest;
-    }, 0);
+    const explicitScore = getHighestNudityScore(nudity, SIGHTENGINE_EXPLICIT_SCORE_FIELDS);
+    const suggestiveScore = getHighestNudityScore(nudity, SIGHTENGINE_SUGGESTIVE_SCORE_FIELDS);
 
-    if (score >= 0.7) {
+    if (explicitScore >= 0.7) {
         return "adult";
-    } else if (score >= 0.4) {
+    } else if (explicitScore >= 0.4 || suggestiveScore >= 0.4) {
         return "teen";
     }
 
     return "everyone";
+}
+
+function getHighestNudityScore(nudity, fields) {
+    return fields.reduce((highest, field) => {
+        const value = Number(nudity?.[field]);
+        return Number.isFinite(value) ? Math.max(highest, value) : highest;
+    }, 0);
 }
 
 function normalizeSightengineModels(models) {

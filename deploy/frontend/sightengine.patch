@@ -1,0 +1,40 @@
+diff --git a/src/components/config/SysCogSecurity.vue b/src/components/config/SysCogSecurity.vue
+index 623b1aa..3201e62 100644
+--- a/src/components/config/SysCogSecurity.vue
++++ b/src/components/config/SysCogSecurity.vue
+@@ -142,0 +143 @@
++                        <el-option label="Sightengine" value="sightengine"></el-option>
+@@ -150,0 +152,11 @@
++                <template v-if="uploadSettings.moderate.channel === 'sightengine'">
++                    <el-form-item :label="$t('sysSecurity.apiUser')">
++                        <el-input v-model="uploadSettings.moderate.sightengineApiUser" placeholder="Sightengine API user"/>
++                    </el-form-item>
++                    <el-form-item :label="$t('sysSecurity.apiSecret')">
++                        <el-input v-model="uploadSettings.moderate.sightengineApiSecret" type="password" show-password/>
++                    </el-form-item>
++                    <el-form-item :label="$t('sysSecurity.models')">
++                        <el-input v-model="uploadSettings.moderate.sightengineModels" placeholder="nudity-2.1,weapon,gore-2.0"/>
++                    </el-form-item>
++                </template>
+diff --git a/src/locales/en.json b/src/locales/en.json
+index 9a17059..b2523b9 100644
+--- a/src/locales/en.json
++++ b/src/locales/en.json
+@@ -620 +620 @@
+-    "imageReviewTooltip": "Only applies to non-chunked uploads, supports nsfwjs and moderatecontent.com channels",
++    "imageReviewTooltip": "Only applies to non-chunked uploads, supports nsfwjs, moderatecontent.com, and Sightengine channels",
+@@ -625,0 +626,3 @@
++    "apiUser": "API User",
++    "apiSecret": "API Secret",
++    "models": "Models (comma-separated)",
+diff --git a/src/locales/zh-CN.json b/src/locales/zh-CN.json
+index 5b7aef2..4af3010 100644
+--- a/src/locales/zh-CN.json
++++ b/src/locales/zh-CN.json
+@@ -626 +626 @@
+-    "imageReviewTooltip": "仅对非分块上传文件生效，支持 nsfwjs 和 moderatecontent.com 渠道",
++    "imageReviewTooltip": "仅对非分块上传文件生效，支持 nsfwjs、moderatecontent.com 和 Sightengine 渠道",
+@@ -631,0 +632,3 @@
++    "apiUser": "API 用户",
++    "apiSecret": "API 密钥",
++    "models": "模型（逗号分隔）",

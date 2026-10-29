@@ -2,8 +2,8 @@
 
 The frontend assets are built from
 [`MarSeventh/Sanyue-ImgHub`](https://github.com/MarSeventh/Sanyue-ImgHub)
-at commit `8fd636d69beb8c3e5d4602cc674be73298211739`, matching the upstream
-upload MIME and size-reduction badge release.
+at commit `5b237cf1ece156909888a8d9b158be8445aad95f`, matching the upstream
+duplicate scan report release.
 
 Apply [sightengine.patch](sightengine.patch) to that source checkout before
 building. It preserves the fork's Sightengine option, API user, API secret
@@ -15,7 +15,7 @@ Use Node.js 22 and the frontend lockfile:
 ```sh
 git clone https://github.com/MarSeventh/Sanyue-ImgHub.git frontend-source
 cd frontend-source
-git checkout 8fd636d69beb8c3e5d4602cc674be73298211739
+git checkout 5b237cf1ece156909888a8d9b158be8445aad95f
 git apply --unidiff-zero /absolute/path/to/CloudFlare-ImgBed/deploy/frontend/sightengine.patch
 npm ci
 npm test
@@ -28,7 +28,7 @@ different builds. Keep the patch when updating the frontend source revision and
 check the security settings page after rebuilding.
 
 The main repository is synchronized with upstream `main` at
-`7886842792c1a48156745a82ce948a6d22a6d328`.
+`274be18fc76294e6548f53dbf442c6cbaeb592e1`.
 All upstream features and documentation are included; the fork's moderation
 behavior and GHCR image publishing configuration are retained. AI tagging stays
 disabled by default and requires a configured vision model and `AI_CONFIG_SECRET`
